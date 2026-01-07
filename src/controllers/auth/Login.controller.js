@@ -16,15 +16,16 @@ exports.login = async (req, res) => {
 
     // Find user in Master DB
     const user = await MasterUser.findOne({ where: { email } });
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
-    }
+    if (!user) return res.status(401).json({ success: false, message: 'Invalid email or password' });
+
+    if (!user.isActive) return res.status(403).json({ success: false, message: 'Account disabled' });
 
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
-    }
+    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid email or password' });
+
+    // update last login
+    try { await user.update({ lastLogin: new Date() }); } catch (uErr) { console.warn('Failed updating lastLogin', uErr.message); }
 
     // Create JWT token
     const token = jwt.sign({ id: user.id, role: user.role, email: user.email });
@@ -37,7 +38,9 @@ exports.login = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        organizationId: user.organizationId,
+        schoolCode: user.schoolCode
       }
     });
   } catch (err) {

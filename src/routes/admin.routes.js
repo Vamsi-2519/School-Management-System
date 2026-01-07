@@ -1,25 +1,36 @@
 const express = require('express');
 const router = express.Router();
 
-const classController = require('../../src/controllers/admin/class.controller');
+const classController = require('../controllers/admin/class.controller');
+const studentController = require('../controllers/admin/student.controller');
+const teacherController = require('../controllers/admin/teacher.controller');
 
 /**
  * CLASS ROUTES
  */
 
-// CREATE class
-router.post('/', classController.createClass);
-
-
-router.get('/', classController.getAllClasses);
-
 // GET class by ID
-router.get('/:id', classController.getClassById);
-
 // UPDATE class
-router.put('/:id', classController.updateClass);
-
 // DELETE class
-router.delete('/:id', classController.deleteClass);
+// CLASS ROUTES (keep existing)
+router.post('/classes', classController.createClass);
+router.get('/classes', classController.getAllClasses);
+router.get('/classes/:id', classController.getClassById);
+router.put('/classes/:id', classController.updateClass);
+router.delete('/classes/:id', classController.deleteClass);
+
+// STUDENT ROUTES
+router.post('/students', studentController.createStudent);
+router.get('/students', studentController.getAllStudents);
+router.get('/students/:id', studentController.getStudentById);
+router.put('/students/:id', studentController.updateStudent);
+router.delete('/students/:id', studentController.deleteStudent);
+
+// TEACHER ROUTES
+router.post('/teachers', teacherController.createTeacher);
+router.get('/teachers', teacherController.getAllTeachers);
+router.get('/teachers/:id', teacherController.getTeacherById);
+router.put('/teachers/:id', teacherController.updateTeacher);
+router.delete('/teachers/:id', teacherController.deleteTeacher);
 
 module.exports = router;
