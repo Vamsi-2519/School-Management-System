@@ -1,13 +1,28 @@
 const express = require('express');
+
 const app = express();
 
-// For JSON body (raw)
+// =====================
+// Global Middlewares
+// =====================
 app.use(express.json());
-
-// For x-www-form-urlencoded (Postman form-data or x-www-form-urlencoded)
 app.use(express.urlencoded({ extended: true }));
 
-// Example route
-app.use('/admin', require('./src/routes/admin.routes'));
+// =====================
+// Routes
+// =====================
+const marketingRoutes = require('./src/routes/marketing.routes');
+
+app.use('/api/marketing', marketingRoutes);
+
+// =====================
+// Health Check
+// =====================
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'API is running'
+  });
+});
 
 module.exports = app;

@@ -98,11 +98,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import router
 const onboardingRoutes = require('./src/routes/marketing.routes');
-const authRoutes = require('./src/routes/auth.routes');
-const studentRoutes = require('./src/routes/admin.routes');
+
 app.use('/', onboardingRoutes);
-app.use('/admin', authRoutes);
-app.use('/', studentRoutes); 
+
 // Master DB
 const masterSequelize = require('./src/config/masterDb');
 
@@ -120,6 +118,5 @@ const masterSequelize = require('./src/config/masterDb');
     console.error('❌ Server start failed', err);
   }
 })();
-
 
 

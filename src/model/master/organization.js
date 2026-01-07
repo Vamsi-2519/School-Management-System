@@ -9,23 +9,32 @@ const Organization = masterSequelize.define(
       primaryKey: true,
       autoIncrement: true
     },
+
     schoolName: {
       type: DataTypes.STRING,
       allowNull: false
     },
+
     schoolCode: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true
     },
+
     email: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    tenantDb: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true
+    },
+
+    address: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+
+    logo: {
+      type: DataTypes.STRING,
+      allowNull: true
     }
   },
   {
