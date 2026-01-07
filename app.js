@@ -1,4 +1,5 @@
 const express = require('express');
+<<<<<<< HEAD
 
 const app = express();
 
@@ -24,5 +25,17 @@ app.get('/', (req, res) => {
     message: 'API is running'
   });
 });
+=======
+const app = express();
+
+// For JSON body (raw)
+app.use(express.json());
+
+// For x-www-form-urlencoded (Postman form-data or x-www-form-urlencoded)
+app.use(express.urlencoded({ extended: true }));
+
+// Example route
+app.use('/admin', require('./src/routes/admin.routes'));
+>>>>>>> 86eb9e9 (Initial commit)
 
 module.exports = app;

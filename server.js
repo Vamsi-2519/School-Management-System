@@ -98,9 +98,17 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import router
 const onboardingRoutes = require('./src/routes/marketing.routes');
+<<<<<<< HEAD
 
 app.use('/', onboardingRoutes);
 
+=======
+const authRoutes = require('./src/routes/auth.routes');
+const studentRoutes = require('./src/routes/admin.routes');
+app.use('/', onboardingRoutes);
+app.use('/admin', authRoutes);
+app.use('/', studentRoutes); 
+>>>>>>> 86eb9e9 (Initial commit)
 // Master DB
 const masterSequelize = require('./src/config/masterDb');
 
@@ -120,3 +128,7 @@ const masterSequelize = require('./src/config/masterDb');
 })();
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 86eb9e9 (Initial commit)
