@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 // const Organization = require('../../model/master/organization');
 
 // const {
@@ -52,6 +52,54 @@
 
 
 
+
+// const masterDb = require('../../config/masterDb');
+// const { Sequelize } = require('sequelize');
+// const OrganizationModel = require('../../model/master/organization');
+
+// // const Organization = OrganizationModel(masterDb, Sequelize.DataTypes);
+
+// exports.onboardSchool = async (req, res) => {
+//   try {
+//     const { schoolName, schoolCode, email, address } = req.body;
+
+//     const tenantDbName = `school_${schoolCode}`;
+
+//     // create tenant database
+//     const tempSequelize = new Sequelize(
+//       'postgres',
+//       process.env.DB_USER,
+//       process.env.DB_PASSWORD,
+//       {
+//         host: process.env.DB_HOST,
+//         dialect: 'postgres',
+//       }
+//     );
+
+//     await tempSequelize.query(`CREATE DATABASE ${tenantDbName}`);
+
+//     // save in master db
+//     const org = await Organization.create({
+//       schoolName,
+//       schoolCode,
+//       email,
+//       address,
+//       tenantDb: tenantDbName,
+//     });
+
+//     res.json({
+//       success: true,
+//       message: 'School onboarded',
+//       org,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// };
+
+
+
+const { Sequelize } = require('sequelize');
 const Organization = require('../../model/master/organization');
 
 exports.onboardSchool = async (req, res) => {
@@ -59,54 +107,51 @@ exports.onboardSchool = async (req, res) => {
     const { schoolName, schoolCode, email, address } = req.body;
 
     if (!schoolName || !schoolCode || !email || !address) {
-      return res.status(400).json({ message: 'All fields required' });
+      return res.status(400).json({
+        success: false,
+        error: 'All fields are required'
+      });
     }
 
-    const school = await Organization.create({
+    const tenantDbName = `school_${schoolCode.toLowerCase()}`;
+
+    // connect to postgres default db
+    const tempSequelize = new Sequelize(
+      'postgres',
+      String(process.env.DB_USER),
+      String(process.env.DB_PASSWORD),
+      {
+        host: process.env.DB_HOST,
+        port: Number(process.env.DB_PORT),
+        dialect: 'postgres',
+        logging: false
+      }
+    );
+
+    // create tenant DB
+    await tempSequelize.query(`CREATE DATABASE "${tenantDbName}"`);
+
+    // save in master db
+    const org = await Organization.create({
       schoolName,
       schoolCode,
       email,
-      address
+      address,
+      tenantDb: tenantDbName
     });
 
-    return res.status(201).json({
+    return res.json({
       success: true,
-      data: school
+      message: 'School onboarded successfully',
+      org
     });
-
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: error.message });
-  }
-};
-
-=======
-const Organization = require('../../model/master/organization');
-const { generateTenantDbName, createTenantDatabase, getTenantSequelize } = require('../../services/tenant.service');
-
-exports.onboardSchool = async (req, res) => {
-  try {
-    const { schoolName, schoolCode, email } = req.body; // works with form-data now
-
-    if (!schoolName || !schoolCode || !email) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
-    }
-
-    const tenantDb = await generateTenantDbName();
-
-    await Organization.create({ schoolName, schoolCode, email, tenantDb });
-
-    await createTenantDatabase(tenantDb);
-
-    const tenantSequelize = getTenantSequelize(tenantDb);
-    await tenantSequelize.authenticate();
-    await tenantSequelize.sync();
-
-    return res.json({ success: true, message: 'School onboarded successfully', tenantDb });
 
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ success: false, message: 'Onboarding failed', error: err.message });
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 };
->>>>>>> 86eb9e9 (Initial commit)
+

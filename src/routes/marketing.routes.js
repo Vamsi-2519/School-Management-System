@@ -1,14 +1,18 @@
+// const router = require('express').Router();
+// const controller = require('../controllers/marketing/onboarding.controller');
+
+// router.post('/onboard-school', controller.onboardSchool);
+
+// module.exports = router;
+
+
+
 const express = require('express');
 const router = express.Router();
-<<<<<<< HEAD
 
-const onboarding = require('../controllers/marketing/onboarding.controller');
+const { onboardSchool } = require('../controllers/marketing/onboarding.controller');
 
-router.post('/school',onboarding. onboardSchool);
-=======
-const  onboardingSchool  = require('../controllers/marketing/onboarding.controller');
-
-router.post('/school_onboard',onboardingSchool. onboardSchool);
->>>>>>> 86eb9e9 (Initial commit)
+// POST /api/admin/school → create a new school (tenant)
+router.post('/school', onboardSchool);
 
 module.exports = router;

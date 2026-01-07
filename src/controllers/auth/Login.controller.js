@@ -1,96 +1,47 @@
-// const Organization = require('../../model/master/organization')
-// const user = require('../../model/tenant/User');
+const bcrypt = require('bcryptjs');
+const jwt = require('../../utils/jwt'); // your JWT utils
+const MasterUser = require('../../model/master/Masteruser'); // Master DB user
 
-// exports.loginSchoolAdmin = async (req, res) => {
-//   try {
-//     const { schoolCode, email, password } = req.body;
-
-//     const org = await Organization.findOne({
-//       where: { schoolCode }   // ✅ correct column
-//     });
-
-//     if (!org) {
-//       return res.status(401).json({
-//         success: false,
-//         message: 'Invalid school code'
-//       });
-//     }
-
-//     return res.json({
-//       success: true,
-//       message: 'Login successful',
-//       tenantDb: org.tenantDb
-//     });
-
-//   } catch (err) {
-//     console.error(err);
-//     return res.status(500).json({
-//       success: false,
-//       message: 'Login failed',
-//       error: err.message
-//     });
-//   }
-// };
-
-
-
-
-
-
-const jwt = require('jsonwebtoken');
-const Organization = require('../../model/master/organization');
-
-exports.loginSchoolAdmin = async (req, res) => {
+/**
+ * POST /api/auth/login
+ * Body: { email, password }
+ */
+exports.login = async (req, res) => {
   try {
-    const { schoolCode } = req.body;
+    const { email, password } = req.body;
 
-    if (!schoolCode) {
-      return res.status(400).json({
-        success: false,
-        message: 'schoolCode is required'
-      });
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    // 1️⃣ Find organization from MASTER DB
-    const org = await Organization.findOne({
-      where: { schoolCode }
-    });
-
-    if (!org) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid school code'
-      });
+    // Find user in Master DB
+    const user = await MasterUser.findOne({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    // 2️⃣ Generate JWT (NO tenant DB touch)
-    const token = jwt.sign(
-      {
-        orgId: org.id,
-        schoolCode: org.schoolCode,
-        tenantDb: org.tenantDb,
-        role: 'SCHOOL_ADMIN'
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: process.env.JWT_EXPIRES_IN || '1d'
-      }
-    );
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
 
-    // 3️⃣ Response
-    return res.json({
+    // Create JWT token
+    const token = jwt.sign({ id: user.id, role: user.role, email: user.email });
+
+    res.json({
       success: true,
       message: 'Login successful',
       token,
-      tenantDb: org.tenantDb
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
     });
-
   } catch (err) {
-    console.error('LOGIN ERROR:', err);
-    return res.status(500).json({
-      success: false,
-      message: 'Login failed',
-      error: err.message
-    });
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Login failed', error: err.message });
   }
 };
