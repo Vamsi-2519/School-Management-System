@@ -32,7 +32,9 @@ const Organization = masterSequelize.define(
     },
     tenantDb: {
       type: DataTypes.STRING,
-      allowNull: false,
+      // allow NULL for existing records so ALTER TABLE can succeed during dev sync
+      // new organizations created by onboarding will populate this field.
+      allowNull: true,
       unique: true
     }
   },

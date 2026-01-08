@@ -98,11 +98,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import router
 const onboardingRoutes = require('./src/routes/marketing.routes');
-// const loginRoutes = require('./src/routes/auth.routes');
+const loginRoutes = require('./src/routes/auth.routes');
+const adminRoutes = require('./src/routes/admin.routes');
 
 app.use('/', onboardingRoutes);
 
-// app.use('/', loginRoutes);
+app.use('/', loginRoutes);
+app.use('/', adminRoutes);
 
 // Master DB
 const masterSequelize = require('./src/config/masterDb');
@@ -111,7 +113,10 @@ const masterSequelize = require('./src/config/masterDb');
   try {
     await masterSequelize.authenticate();
     console.log('✅ Master DB connected');
-    await masterSequelize.sync();
+    // In development, auto-sync model changes to DB (adds missing columns).
+    // Do NOT enable `alter` in production databases without review.
+    const syncOptions = (process.env.NODE_ENV === 'production') ? {} : { alter: true };
+    await masterSequelize.sync(syncOptions);
     console.log('✅ Master DB synced');
 
     app.listen(process.env.PORT || 5000, () => {

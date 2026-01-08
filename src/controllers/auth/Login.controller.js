@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
 const jwt = require('../../utils/jwt'); // your JWT utils
 const MasterUser = require('../../model/master/Masteruser'); // Master DB user
 
@@ -8,19 +9,26 @@ const MasterUser = require('../../model/master/Masteruser'); // Master DB user
  */
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Accept either `email` or `phone`/`username` in body. Normalize email.
+    const rawId = req.body.email || req.body.username || req.body.phone;
+    const password = req.body.password;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    if (!rawId || !password) {
+      return res.status(400).json({ success: false, message: 'Email/phone and password are required' });
     }
 
-    // Find user in Master DB
-    const user = await MasterUser.findOne({ where: { email } });
+    const lookup = rawId.toString().trim();
+    const emailLookup = lookup.includes('@') ? lookup.toLowerCase() : null;
+
+    // Find user by email or phone
+    const whereClause = emailLookup ? { [Op.or]: [{ email: emailLookup }, { phone: lookup }] } : { phone: lookup };
+    const user = await MasterUser.findOne({ where: whereClause });
     if (!user) return res.status(401).json({ success: false, message: 'Invalid email or password' });
 
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account disabled' });
 
-    // Compare password
+    // Compare password (user.password should be hashed). Guard null.
+    if (!user.password) return res.status(401).json({ success: false, message: 'Invalid email or password' });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid email or password' });
 

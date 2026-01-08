@@ -1,5 +1,6 @@
 const { Sequelize } = require('sequelize');
 const Organization = require('../model/master/organization');
+const masterSequelize = require('../config/masterDb');
 
 // Cache tenant connections
 const tenantConnections = {};
@@ -16,22 +17,19 @@ const generateTenantDbName = async (schoolCode) => {
  * Create tenant database
  */
 const createTenantDatabase = async (tenantDbName) => {
-  // Connect to default postgres database
-  const sequelize = new Sequelize(
-    'postgres',
-    process.env.DB_USER,
-    process.env.DB_PASSWORD,
-    {
-      host: process.env.DB_HOST,
-      port: process.env.DB_PORT || 5432,
-      dialect: 'postgres',
-      logging: false
+  // Use the master DB connection to create tenant databases. This centralizes
+  // configuration and avoids creating a new Sequelize instance with possibly
+  // inconsistent env vars.
+  try {
+    await masterSequelize.query(`CREATE DATABASE "${tenantDbName}"`);
+  } catch (err) {
+    // Ignore 'database already exists' (Postgres code 42P04). Re-throw others.
+    const code = err && err.original && err.original.code;
+    if (code === '42P04') {
+      return;
     }
-  );
-
-  // Create DB if not exists
-  await sequelize.query(`CREATE DATABASE "${tenantDbName}"`);
-  await sequelize.close();
+    throw err;
+  }
 };
 
 /**
@@ -59,21 +57,35 @@ const getTenantSequelize = (tenantDbName) => {
 };
 
 /**
- * Create base tables inside tenant DB
+ * Create base tables inside tenant DB by registering tenant models on the
+ * tenant Sequelize instance and syncing. This ensures table definitions match
+ * the model files in `src/model/tenant` (students, teachers, classes, users).
  */
 const createTenantTables = async (tenantDbName) => {
   const sequelize = getTenantSequelize(tenantDbName);
 
-  await sequelize.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      email VARCHAR(100) UNIQUE NOT NULL,
-      password VARCHAR(255),
-      role VARCHAR(50),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  // Load tenant model definitions and register them on the tenant Sequelize
+  // instance. Models export a function (sequelize, DataTypes) => model.
+  const studentDef = require('../model/tenant/Student');
+  const teacherDef = require('../model/tenant/Teacher');
+  const classDef = require('../model/tenant/Class');
+
+  // Optional tenant User model if present
+  let userDef;
+  try {
+    userDef = require('../model/tenant/User');
+  } catch (e) {
+    userDef = null;
+  }
+
+  // Define models on tenant sequelize
+  studentDef(sequelize, Sequelize.DataTypes);
+  teacherDef(sequelize, Sequelize.DataTypes);
+  classDef(sequelize, Sequelize.DataTypes);
+  if (userDef) userDef(sequelize, Sequelize.DataTypes);
+
+  // Sync models to create tables. Use safe sync (no force) so existing data is preserved.
+  await sequelize.sync();
 };
 
 module.exports = {

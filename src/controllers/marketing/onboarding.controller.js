@@ -99,8 +99,8 @@
 
 
 
-const { Sequelize } = require('sequelize');
 const Organization = require('../../model/master/organization');
+const { createTenantDatabase, createTenantTables } = require('../../services/tenant.service');
 
 exports.onboardSchool = async (req, res) => {
   try {
@@ -113,23 +113,39 @@ exports.onboardSchool = async (req, res) => {
       });
     }
 
-    const tenantDbName = `school_${schoolCode.toLowerCase()}`;
+    const tenantDbName = `school_${schoolCode}`;
 
-    // connect to postgres default db
-    const tempSequelize = new Sequelize(
-      'postgres',
-      String(process.env.DB_USER),
-      String(process.env.DB_PASSWORD),
-      {
-        host: process.env.DB_HOST,
-        port: Number(process.env.DB_PORT),
-        dialect: 'postgres',
-        logging: false
+    const { Op } = require('sequelize');
+
+    // Ensure uniqueness before attempting to create DB or Organization
+    const existing = await Organization.findOne({
+      where: {
+        [Op.or]: [
+          { schoolCode },
+          { email },
+          { tenantDb: tenantDbName }
+        ]
       }
-    );
+    });
 
-    // create tenant DB
-    await tempSequelize.query(`CREATE DATABASE "${tenantDbName}"`);
+    if (existing) {
+      // Determine which field conflicts
+      if (existing.schoolCode === schoolCode) {
+        return res.status(409).json({ success: false, error: 'schoolCode already exists' });
+      }
+      if (existing.email === email) {
+        return res.status(409).json({ success: false, error: 'email already exists' });
+      }
+      if (existing.tenantDb === tenantDbName) {
+        return res.status(409).json({ success: false, error: 'tenant DB name already exists' });
+      }
+      return res.status(409).json({ success: false, error: 'Organization already exists' });
+    }
+
+    // create tenant DB using the central tenant service (uses master DB connection)
+    await createTenantDatabase(tenantDbName);
+    // create base tables inside the new tenant DB
+    await createTenantTables(tenantDbName);
 
     // save in master db
     const org = await Organization.create({
@@ -148,6 +164,13 @@ exports.onboardSchool = async (req, res) => {
 
   } catch (err) {
     console.error(err);
+    const code = err && err.parent && err.parent.code;
+    if (code === '28P01') {
+      return res.status(500).json({
+        success: false,
+        error: 'Database authentication failed. Check DB_USER / DB_PASSWORD and MASTER_DB_URL.'
+      });
+    }
     return res.status(500).json({
       success: false,
       error: err.message

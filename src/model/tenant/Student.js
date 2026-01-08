@@ -5,23 +5,36 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    firstName: DataTypes.STRING,
-    lastName: DataTypes.STRING,
+    firstName: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    lastName: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     admissionNo: {
       type: DataTypes.STRING,
       unique: true,
+      allowNull: true
     },
-    gender: DataTypes.STRING,
-    dob: DataTypes.DATEONLY,
+    gender: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    dob: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
     profileImage: {
-      type: String,
-      required: true,
-      unique: true,
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: false
     },
     organizationId: {
-        type: DataTypes.UUID,
-        allowNull: true, // For schooladmin & marketing users
-      },
+      type: DataTypes.UUID,
+      allowNull: true
+    }
   }, {
     tableName: 'students',
     timestamps: true,

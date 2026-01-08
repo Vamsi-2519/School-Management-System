@@ -13,7 +13,7 @@ const teacherController = require('../controllers/admin/teacher.controller');
 // UPDATE class
 // DELETE class
 // CLASS ROUTES (keep existing)
-router.post('/classes', classController.createClass);
+router.post('/createclasses', classController.createClass);
 router.get('/classes', classController.getAllClasses);
 router.get('/classes/:id', classController.getClassById);
 router.put('/classes/:id', classController.updateClass);
