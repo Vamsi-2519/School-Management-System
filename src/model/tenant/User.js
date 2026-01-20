@@ -1,3 +1,5 @@
+const { Organization } = require("../master");
+
 module.exports = (sequelize, DataTypes) => {
   return sequelize.define(
     'User',
@@ -6,6 +8,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
+      },
+      OrganizationId: {
+        type: DataTypes.UUID,
+        allowNull: false,
       },
 
       email: {
@@ -18,11 +24,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false
       },
-
-      role: {
-        type: DataTypes.ENUM('ADMIN', 'TEACHER', 'STAFF'),
-        allowNull: false
-      }
     },
     {
       freezeTableName: true,

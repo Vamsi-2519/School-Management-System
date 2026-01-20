@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
+const userController = require('../controllers/admin/user.controller');
 const classController = require('../controllers/admin/class.controller');
 const studentController = require('../controllers/admin/student.controller');
 const teacherController = require('../controllers/admin/teacher.controller');
@@ -11,6 +12,14 @@ const feePaymentController = require('../controllers/admin/fee.controller');
 // const authMiddleware = require('../middlewares/auth.middlewares');
 const { tenantDbMiddleware } = require('../middlewares/tenant.middleware');
 
+
+// CREATE USER (x-www-form-urlencoded)
+router.post('/users', userController.createUser);
+router.get('/all', userController.getAllUsers);
+router.get('/users/:id', userController.getUserById);
+
+
+
 /**
  * CLASS ROUTES
  */
@@ -19,6 +28,7 @@ router.get('/classes', classController.getAllClasses);
 router.get('/classes/:id', classController.getClassById);
 router.put('/classes/:id', classController.updateClass);
 router.delete('/classes/:id', classController.deleteClass);
+
 
 // STUDENT ROUTES
 router.post('/students', tenantDbMiddleware, studentController.createStudent);

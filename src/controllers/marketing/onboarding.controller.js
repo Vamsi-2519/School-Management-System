@@ -99,7 +99,7 @@
 
 
 
-const Organization = require('../../model/master/organization');
+const { Organization } = require('../../model/master');
 const { createTenantDatabase, createTenantTables } = require('../../services/tenant.service');
 
 exports.onboardSchool = async (req, res) => {

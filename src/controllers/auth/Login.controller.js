@@ -1,170 +1,246 @@
+// const bcrypt = require('bcryptjs');
+// const jwt = require('jsonwebtoken');
+// const MasterUser = require('../../model/master/Masteruser');
+// const Organization = require('../../model/master/organization');
+// const { getTenantConnection } = require('../../config/tenantManager');
+// const TenantUserModel = require('../../model/tenant/User');
+
+// exports.login = async (req, res) => {
+//   try {
+//     const { email, phone, password, schoolCode } = req.body;
+
+//     if ((!email && !phone) || !password) {
+//       console.log('[LOGIN] Missing email/phone or password');
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Email or phone and password are required'
+//       });
+//     }
+
+//     // Normalize inputs
+//     const normalizedEmail = email ? email.trim().toLowerCase() : null;
+//     const normalizedPhone = phone ? phone.trim() : null;
+//     const normalizedSchoolCode = schoolCode ? schoolCode.trim().toUpperCase() : null;
+
+//     // 1. Try Master DB
+//     let user;
+//     try {
+//       user = await MasterUser.findOne({
+//         where: {
+//           ...(normalizedEmail && { email: normalizedEmail }),
+//           ...(normalizedPhone && { phone: normalizedPhone })
+//         }
+//       });
+//       if (user) {
+//         console.log(`[LOGIN] Found user in Master DB: ${user.email || user.phone}`);
+//       } else {
+//         console.log('[LOGIN] User not found in Master DB');
+//       }
+//     } catch (err) {
+//       console.error('Error querying MasterUser:', err);
+//       return res.status(500).json({ success: false, message: 'Master DB query error', error: err.message });
+//     }
+//     let userType = 'master';
+
+//     // 2. If not found, try Tenant DB (schoolCode required)
+//     if (!user && normalizedSchoolCode) {
+//       let organization;
+//       try {
+//         organization = await Organization.findOne({ where: { schoolCode: normalizedSchoolCode } });
+//       } catch (err) {
+//         console.error('Error querying Organization:', err);
+//         return res.status(500).json({ success: false, message: 'Organization query error', error: err.message });
+//       }
+//       if (!organization || !organization.tenantDb) {
+//         return res.status(404).json({ success: false, message: 'Invalid school code or tenant DB not configured' });
+//       }
+//       let tenantDb;
+//       try {
+//         let connectionString = process.env.TENANT_DB_URL;
+//         if (!connectionString) {
+//           // Build connection string dynamically from .env values
+//           const dbUser = process.env.DB_USER || 'postgres';
+//           const dbPass = process.env.DB_PASSWORD || process.env.DB_PASS || '';
+//           const dbHost = process.env.DB_HOST || 'localhost';
+//           const dbPort = process.env.DB_PORT || '5432';
+//           connectionString = `postgres://${dbUser}:${dbPass}@${dbHost}:${dbPort}/${organization.tenantDb}`;
+//         }
+//         tenantDb = await getTenantConnection({
+//           database: organization.tenantDb,
+//           url: connectionString
+//         });
+//       } catch (err) {
+//         console.error('Error connecting to tenant DB:', err);
+//         return res.status(500).json({ success: false, message: 'Tenant DB connection error', error: err.message });
+//       }
+//       let TenantUser;
+//       try {
+//         TenantUser = TenantUserModel(tenantDb, require('sequelize').DataTypes);
+//       } catch (err) {
+//         console.error('Error initializing TenantUser model:', err);
+//         return res.status(500).json({ success: false, message: 'TenantUser model error', error: err.message });
+//       }
+//       try {
+//         user = await TenantUser.findOne({
+//           where: {
+//             ...(normalizedEmail && { email: normalizedEmail }),
+//             ...(normalizedPhone && { phone: normalizedPhone })
+//           }
+//         });
+//       } catch (err) {
+//         console.error('Error querying TenantUser:', err);
+//         return res.status(500).json({ success: false, message: 'Tenant DB query error', error: err.message });
+//       }
+//       userType = 'tenant';
+//     }
+
+//     if (!user) {
+//       // For tenant login, show available emails for debugging
+//       let allTenantUsers = [];
+//       try {
+//         // Use the organization variable from the previous scope
+//         let orgTenantDb = userType === 'tenant' && req.body.schoolCode ? normalizedSchoolCode : null;
+//         let connectionString = process.env.TENANT_DB_URL;
+//         if (!connectionString && orgTenantDb) {
+//           const dbUser = process.env.DB_USER || 'postgres';
+//           const dbPass = process.env.DB_PASSWORD || process.env.DB_PASS || '';
+//           const dbHost = process.env.DB_HOST || 'localhost';
+//           const dbPort = process.env.DB_PORT || '5432';
+//           connectionString = `postgres://${dbUser}:${dbPass}@${dbHost}:${dbPort}/school_${orgTenantDb}`;
+//         }
+//         if (connectionString) {
+//           const tenantDb = await getTenantConnection({
+//             database: `school_${orgTenantDb}`,
+//             url: connectionString
+//           });
+//           const TenantUser = TenantUserModel(tenantDb, require('sequelize').DataTypes);
+//           allTenantUsers = await TenantUser.findAll();
+//           console.log('[LOGIN] All tenant users:', allTenantUsers.map(u => u.email || u.phone));
+//         }
+//       } catch (err) {
+//         console.error('Error fetching all tenant users:', err);
+//       }
+//       console.log('[LOGIN] User not found in Tenant DB');
+//       return res.status(401).json({
+//         success: false,
+//         message: 'Invalid credentials'
+//       });
+//     }
+
+//     // Password check
+//     try {
+//       if (!user.password) {
+//         console.log('[LOGIN] User found but no password set');
+//         return res.status(401).json({ success: false, message: 'Invalid credentials' });
+//       }
+//       const passwordMatch = await bcrypt.compare(password, user.password);
+//       if (!passwordMatch) {
+//         console.log('[LOGIN] Password mismatch for user:', user.email || user.phone);
+//         return res.status(401).json({ success: false, message: 'Invalid credentials' });
+//       }
+//     } catch (err) {
+//       console.error('Error comparing password:', err);
+//       return res.status(500).json({ success: false, message: 'Password check error', error: err.message });
+//     }
+
+//     // Account active check (if present)
+//     if (user.isActive !== undefined && !user.isActive) {
+//       return res.status(403).json({ success: false, message: 'Account inactive' });
+//     }
+
+//     // JWT payload
+//     const tokenPayload = {
+//       id: user.id,
+//       role: user.role,
+//       email: user.email,
+//       phone: user.phone,
+//       userType,
+//       ...(userType === 'tenant' && { schoolCode: normalizedSchoolCode })
+//     };
+
+//     let token;
+//     try {
+//       token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1d' });
+//     } catch (err) {
+//       console.error('Error signing JWT:', err);
+//       return res.status(500).json({ success: false, message: 'JWT signing error', error: err.message });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Login successful',
+//       token,
+//       user: tokenPayload
+//     });
+//   } catch (error) {
+//     console.error('LOGIN ERROR:', error);
+//     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+//   }
+// };
+
+
+
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const MasterUser = require('../../model/master/Masteruser');
-const Organization = require('../../model/master/organization');
+const { Organization } = require('../../model/master');
 const { getTenantConnection } = require('../../config/tenantManager');
 const TenantUserModel = require('../../model/tenant/User');
+const { DataTypes } = require('sequelize');
 
 exports.login = async (req, res) => {
   try {
-    const { email, phone, password, schoolCode } = req.body;
+    const { email, password, schoolCode } = req.body;
+    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password required' });
 
-    if ((!email && !phone) || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email or phone and password are required'
-      });
-    }
-
-    // Normalize inputs
-    const normalizedEmail = email ? email.trim().toLowerCase() : null;
-    const normalizedPhone = phone ? phone.trim() : null;
-    const normalizedSchoolCode = schoolCode ? schoolCode.trim().toUpperCase() : null;
-
-    // 1. Try Master DB
-    let user;
-    try {
-      user = await MasterUser.findOne({
-        where: {
-          ...(normalizedEmail && { email: normalizedEmail }),
-          ...(normalizedPhone && { phone: normalizedPhone })
-        }
-      });
-    } catch (err) {
-      console.error('Error querying MasterUser:', err);
-      return res.status(500).json({ success: false, message: 'Master DB query error', error: err.message });
-    }
+    const normalizedEmail = email.trim().toLowerCase();
+    let user = null;
     let userType = 'master';
+    let organizationName = null;
 
-    // 2. If not found, try Tenant DB (schoolCode required)
-    if (!user && normalizedSchoolCode) {
-      let organization;
-      try {
-        organization = await Organization.findOne({ where: { schoolCode: normalizedSchoolCode } });
-      } catch (err) {
-        console.error('Error querying Organization:', err);
-        return res.status(500).json({ success: false, message: 'Organization query error', error: err.message });
-      }
-      if (!organization || !organization.tenantDb) {
-        return res.status(404).json({ success: false, message: 'Invalid school code or tenant DB not configured' });
-      }
-      let tenantDb;
-      try {
-        let connectionString = process.env.TENANT_DB_URL;
-        if (!connectionString) {
-          // Build connection string dynamically from .env values
-          const dbUser = process.env.DB_USER || 'postgres';
-          const dbPass = process.env.DB_PASSWORD || process.env.DB_PASS || '';
-          const dbHost = process.env.DB_HOST || 'localhost';
-          const dbPort = process.env.DB_PORT || '5432';
-          connectionString = `postgres://${dbUser}:${dbPass}@${dbHost}:${dbPort}/${organization.tenantDb}`;
-        }
-        tenantDb = await getTenantConnection({
-          database: organization.tenantDb,
-          url: connectionString
-        });
-      } catch (err) {
-        console.error('Error connecting to tenant DB:', err);
-        return res.status(500).json({ success: false, message: 'Tenant DB connection error', error: err.message });
-      }
-      let TenantUser;
-      try {
-        TenantUser = TenantUserModel(tenantDb, require('sequelize').DataTypes);
-      } catch (err) {
-        console.error('Error initializing TenantUser model:', err);
-        return res.status(500).json({ success: false, message: 'TenantUser model error', error: err.message });
-      }
-      try {
-        user = await TenantUser.findOne({
-          where: {
-            ...(normalizedEmail && { email: normalizedEmail }),
-            ...(normalizedPhone && { phone: normalizedPhone })
-          }
-        });
-      } catch (err) {
-        console.error('Error querying TenantUser:', err);
-        return res.status(500).json({ success: false, message: 'Tenant DB query error', error: err.message });
-      }
-      userType = 'tenant';
-    }
+    user = await MasterUser.findOne({ where: { email: normalizedEmail } });
 
     if (!user) {
-      // For tenant login, show available emails for debugging
-      let allTenantUsers = [];
-      try {
-        // Use the organization variable from the previous scope
-        let orgTenantDb = userType === 'tenant' && req.body.schoolCode ? normalizedSchoolCode : null;
-        let connectionString = process.env.TENANT_DB_URL;
-        if (!connectionString && orgTenantDb) {
-          const dbUser = process.env.DB_USER || 'postgres';
-          const dbPass = process.env.DB_PASSWORD || process.env.DB_PASS || '';
-          const dbHost = process.env.DB_HOST || 'localhost';
-          const dbPort = process.env.DB_PORT || '5432';
-          connectionString = `postgres://${dbUser}:${dbPass}@${dbHost}:${dbPort}/school_${orgTenantDb}`;
-        }
-        if (connectionString) {
-          const tenantDb = await getTenantConnection({
-            database: `school_${orgTenantDb}`,
-            url: connectionString
-          });
-          const TenantUser = TenantUserModel(tenantDb, require('sequelize').DataTypes);
-          allTenantUsers = await TenantUser.findAll();
-        }
-      } catch (err) {
-        console.error('Error fetching all tenant users:', err);
-      }
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
+      if (!schoolCode) return res.status(401).json({ success: false, message: 'Invalid credentials or missing schoolCode' });
+
+
+      const org = await Organization.findOne({ where: { schoolCode: schoolCode.trim().toUpperCase() } });
+      if (!org) return res.status(404).json({ success: false, message: 'Invalid school code' });
+
+      const tenantDb = await getTenantConnection({
+        database: org.tenantDb,
+        url: `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${org.tenantDb}`
       });
+
+      const TenantUser = TenantUserModel(tenantDb, DataTypes);
+      user = await TenantUser.findOne({ where: { email: normalizedEmail } });
+
+      if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+      userType = 'tenant';
+      organizationName = org.name;
     }
 
-    // Password check
-    try {
-      if (!user.password || !(await bcrypt.compare(password, user.password))) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
-    } catch (err) {
-      console.error('Error comparing password:', err);
-      return res.status(500).json({ success: false, message: 'Password check error', error: err.message });
-    }
+    const isMatch = await bcrypt.compare(password, user.password || '');
+    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    // Account active check (if present)
-    if (user.isActive !== undefined && !user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account inactive' });
-    }
-
-    // JWT payload
-    const tokenPayload = {
+    const payload = {
       id: user.id,
-      role: user.role,
       email: user.email,
-      phone: user.phone,
       userType,
-      ...(userType === 'tenant' && { schoolCode: normalizedSchoolCode })
+      ...(userType === 'tenant' && { organizationName })
     };
 
-    let token;
-    try {
-      token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1d' });
-    } catch (err) {
-      console.error('Error signing JWT:', err);
-      return res.status(500).json({ success: false, message: 'JWT signing error', error: err.message });
-    }
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: tokenPayload
-    });
-  } catch (error) {
-    console.error('LOGIN ERROR:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    return res.status(200).json({ success: true, message: 'Login successful', token, user: payload });
+
+  } catch (err) {
+    console.error('LOGIN ERROR:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
-
-
 
 
 
