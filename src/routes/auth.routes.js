@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const { login } = require('../controllers/auth/Login.controller');
 
-const loginController = require('../controllers/auth/Login.controller');
-
-
-router.post('/login', loginController.login);
+// Unified login route (master & tenant)
+router.post('/login', login);
 
 module.exports = router;

@@ -39,12 +39,49 @@ const tenantConnections = new Map();
 
 async function getTenantConnection(tenantConfig) {
   const key = tenantConfig.database; 
-  if (tenantConnections.has(key)) return tenantConnections.get(key);
-  const sequelize = new Sequelize(tenantConfig.url, { logging: false });
-  // Optionally authenticate
-  await sequelize.authenticate();
-  tenantConnections.set(key, sequelize);
-  return sequelize;
+  if (tenantConnections.has(key)) {
+    try {
+      const cached = tenantConnections.get(key);
+      await cached.authenticate();
+      return cached;
+    } catch (err) {
+      console.warn(`⚠️  Cached connection for "${key}" is invalid, removing from cache:`, err.message);
+      tenantConnections.delete(key);
+    }
+  }
+
+  try {
+    const sequelize = new Sequelize(tenantConfig.url, { 
+      logging: false,
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000
+      }
+    });
+    
+    // Authenticate before caching
+    await sequelize.authenticate();
+    console.log(`✅ Connected to tenant database: ${key}`);
+    
+    tenantConnections.set(key, sequelize);
+    return sequelize;
+  } catch (err) {
+    console.error(`❌ Failed to connect to tenant database "${key}":`, err.message);
+    throw new Error(`Cannot connect to tenant database "${key}". Database may not exist or credentials are invalid.`);
+  }
 }
 
-module.exports = { getTenantConnection, tenantConnections };
+/**
+ * Clear all cached connections
+ */
+function clearTenantConnections() {
+  tenantConnections.forEach((sequelize, key) => {
+    sequelize.close().catch(err => console.error(`Error closing connection for ${key}:`, err.message));
+  });
+  tenantConnections.clear();
+  console.log('✅ Cleared all tenant connections');
+}
+
+module.exports = { getTenantConnection, tenantConnections, clearTenantConnections };

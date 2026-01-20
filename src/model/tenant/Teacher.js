@@ -51,6 +51,10 @@ module.exports = (sequelize, DataTypes) => {
       organizationId: {
         type: DataTypes.UUID,
         allowNull: true
+      },
+      Schoolcode: {
+        type: DataTypes.STRING,
+        allowNull: true
       }
     },
     {

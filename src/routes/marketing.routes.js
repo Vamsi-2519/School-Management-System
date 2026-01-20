@@ -1,18 +1,17 @@
-// const router = require('express').Router();
-// const controller = require('../controllers/marketing/onboarding.controller');
-
-// router.post('/onboard-school', controller.onboardSchool);
-
-// module.exports = router;
 
 
 
 const express = require('express');
 const router = express.Router();
 
-const { onboardSchool } = require('../controllers/marketing/onboarding.controller');
+const { onboardSchool, getAllOrganizations,
+  getOrganizationById,updateOrganization,
+  deleteOrganization } = require('../controllers/marketing/onboarding.controller');
 
 // POST /api/admin/school → create a new school (tenant)
 router.post('/school', onboardSchool);
-
+router.get('/getall', getAllOrganizations);
+router.get('/getby/:id', getOrganizationById);
+router.put('/update/:id', updateOrganization);
+router.delete('/delete/:id', deleteOrganization);
 module.exports = router;

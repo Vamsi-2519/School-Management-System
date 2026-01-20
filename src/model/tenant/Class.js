@@ -1,14 +1,15 @@
 module.exports = (sequelize, DataTypes) => {
+  console.log('Initializing Class model...');
   return sequelize.define(
     'Class',
     {
       id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
         primaryKey: true
       },
       organizationId: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING,
         allowNull: true
       },
       name: {
@@ -39,6 +40,10 @@ module.exports = (sequelize, DataTypes) => {
       currentStrength: {
         type: DataTypes.INTEGER,
         defaultValue: 0
+      },
+      Schoolcode: {
+        type: DataTypes.STRING,
+        allowNull: true
       }
     },
     {
